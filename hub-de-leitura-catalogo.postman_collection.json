@@ -1,0 +1,512 @@
+{
+  "info": {
+    "_postman_id": "30286562-1670-4167-8691-14571c094a30",
+    "name": "Hub de Leitura - Catálogo de Livros",
+    "description": "Testes de API da funcionalidade Catálogo de Livros do Hub de Leitura (ambiente local).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Autenticação",
+      "item": [
+        {
+          "name": "Login como administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 - login realizado\", () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Usuário é administrador\", () => pm.expect(res.isAdmin).to.eql(true));",
+                  "pm.test(\"Token retornado\", () => pm.expect(res.token).to.include(\"Bearer\"));",
+                  "pm.collectionVariables.set(\"token\", res.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@biblioteca.com\",\n  \"password\": \"admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cenários positivos",
+      "item": [
+        {
+          "name": "Listar livros",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Retorna uma lista de livros\", () => {",
+                  "    pm.expect(res.books).to.be.an(\"array\");",
+                  "    pm.expect(res.books.length).to.be.above(0);",
+                  "});",
+                  "pm.test(\"Cada livro tem título e autor\", () => {",
+                  "    res.books.forEach(b => {",
+                  "        pm.expect(b).to.have.property(\"title\");",
+                  "        pm.expect(b).to.have.property(\"author\");",
+                  "    });",
+                  "});",
+                  "pm.test(\"Retorna dados de paginação\", () => pm.expect(res.pagination.total).to.be.a(\"number\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar livro por ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Retorna o livro com ID 1\", () => pm.expect(res.book.id).to.eql(1));",
+                  "pm.test(\"Livro tem título e autor\", () => {",
+                  "    pm.expect(res.book.title).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(res.book.author).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Exemplares disponíveis não passam do total\", () => {",
+                  "    pm.expect(res.book.available_copies).to.be.at.most(res.book.total_copies);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar livro",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Título único a cada execução, para não cair na regra de livro duplicado",
+                  "pm.collectionVariables.set(\"bookTitle\", \"Livro Teste QA \" + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 - livro criado\", () => pm.response.to.have.status(201));",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Mensagem de sucesso\", () => pm.expect(res.message).to.eql(\"Livro criado com sucesso.\"));",
+                  "pm.test(\"Livro criado com o título enviado\", () => {",
+                  "    pm.expect(res.book.title).to.eql(pm.collectionVariables.get(\"bookTitle\"));",
+                  "});",
+                  "pm.test(\"Exemplares disponíveis iguais ao total no cadastro\", () => {",
+                  "    pm.expect(res.book.available_copies).to.eql(res.book.total_copies);",
+                  "});",
+                  "pm.collectionVariables.set(\"bookId\", res.book.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{bookTitle}}\",\n  \"author\": \"Autor Teste EBAC\",\n  \"category\": \"Tecnologia\",\n  \"format\": \"Físico\",\n  \"total_copies\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Atualizar livro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 - livro atualizado\", () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Mensagem de sucesso\", () => pm.expect(res.message).to.eql(\"Livro atualizado com sucesso.\"));",
+                  "pm.test(\"Atualizou o livro correto\", () => pm.expect(res.bookId).to.eql(Number(pm.collectionVariables.get(\"bookId\"))));",
+                  "pm.test(\"Campo título foi atualizado\", () => pm.expect(res.updatedFields).to.include(\"title\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/books/{{bookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books",
+                "{{bookId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{bookTitle}} - Atualizado\",\n  \"author\": \"Autor Teste EBAC\",\n  \"total_copies\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Conferir livro atualizado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Título foi alterado\", () => {",
+                  "    pm.expect(res.book.title).to.eql(pm.collectionVariables.get(\"bookTitle\") + \" - Atualizado\");",
+                  "});",
+                  "pm.test(\"Total de exemplares foi alterado\", () => pm.expect(res.book.total_copies).to.eql(5));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books/{{bookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books",
+                "{{bookId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Excluir livro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 - livro excluído\", () => pm.response.to.have.status(200));",
+                  "const res = pm.response.json();",
+                  "pm.test(\"Mensagem de sucesso\", () => pm.expect(res.message).to.eql(\"Livro deletado com sucesso.\"));",
+                  "pm.test(\"Excluiu o livro correto\", () => pm.expect(res.deletedBook.id).to.eql(Number(pm.collectionVariables.get(\"bookId\"))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/books/{{bookId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books",
+                "{{bookId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cenários negativos",
+      "item": [
+        {
+          "name": "Buscar livro inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Mensagem de livro não encontrado\", () => pm.expect(pm.response.json().message).to.eql(\"Livro não encontrado.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books/99999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books",
+                "99999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cadastrar livro sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Mensagem de token obrigatório\", () => pm.expect(pm.response.json().message).to.eql(\"Token de acesso necessário\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Livro Sem Token\",\n  \"author\": \"Autor Teste EBAC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar livro sem título",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Informa que o título é obrigatório\", () => pm.expect(pm.response.json().field).to.eql(\"title\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"author\": \"Autor Teste EBAC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cadastrar livro duplicado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Mensagem de livro duplicado\", () => {",
+                  "    pm.expect(pm.response.json().message).to.eql(\"Já existe um livro com este título e autor.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "{{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/books",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "books"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Dom Casmurro\",\n  \"author\": \"Machado de Assis\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "bookId",
+      "value": ""
+    },
+    {
+      "key": "bookTitle",
+      "value": ""
+    }
+  ]
+}
